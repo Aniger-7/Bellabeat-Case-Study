@@ -1,0 +1,139 @@
+---
+title: "Bellabeat Case Study"
+author: "Regina"
+date: "1/3/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Scenario
+
+BellaBeat is a high-tech manufacturer of health-focused products for women. BellaBeat is a successful small company, but they have the potential to become a larger player in the
+global smart device market. Urška Sršen, co-founder and Chief Creative Officer of BellaBeat, believes that analyzing smart device fitness data could help unlock new growth opportunities for the company. 
+
+## Step 1 - ASK - Identify the business task and key stake holders.
+
+### Business Task
+The marketing analytics team has been asked to **focus on one of Bellabeat’s products and analyze smart device data to gain insight into how consumers are using their smart devices**. The insights discovered will then help guide marketing strategy for the company through high-level recommendations for BellaBeat’s marketing strategy.
+
+### Stakeholders
+* Urška Sršen: BellaBeat’s cofounder and Chief Creative Officer
+* Sando Mur: Mathematician and BellaBeat’s cofounder; key member of the Bellabeat executive team
+* BellaBeat marketing analytics team: A team of data analysts responsible for collecting, analyzing, and reporting data that helps guide Bellabeat’s marketing strategy.
+
+## Step 2 - PREPARE - Fetch appropriate data
+
+I will use a public data that explores smart device users’ daily habits. 
+<FitBit Fitness Tracker Data> (https://www.kaggle.com/arashnic/fitbit) on Kaggle.
+This Kaggle data set contains personal fitness tracker from thirty fitbit users. Thirty eligible Fitbit users consented to the submission of personal tracker data, including minute-level output for physical activity, heart rate, and sleep monitoring.
+
+## Step 3 - PROCESS - Choosing appropriate tools and data cleaning
+
+As the dataset is large and has multiple variables, I decided to choose RStudio for analysis. Using R, I can process and analyse the data faster and visualize at the same time.
+
+### 3.a) 
+Data Processing begins with installing required packages. Here I use tidyverse.
+```{r message=FALSE, warning=FALSE}
+install.packages("tidyverse")
+library(tidyverse)
+```
+
+### 3.b) 
+Next I view the Daily Activity data and its metadata.
+```{r message=FALSE, warning=FALSE}
+daily_activity <- read_csv("dailyActivity_merged.csv")
+colnames(daily_activity)
+tibble(daily_activity)
+```
+## Step 4 - ANALYZE
+
+I now begin the analysis.Following is my approach --
+* Group user data by user ID and analyse trends in average value of all statistics. 
+* Group users in to various types ranging from 'very active' to 'sedentary' and analyze trends
+* Analyze trends in distance and calories to provide actionable insights
+
+### 4.a) 
+Create a new data frame grouping users by ID and analyzing general trends by visualizing.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+##Creating new dataframe with info per id
+daily_activity_by_id <- daily_activity %>% 
+  group_by(Id) %>% 
+  summarise( Avg_Steps = mean(TotalSteps), Avg_Distance  = mean(TotalDistance), Avg_VeryActive_Distance = mean(VeryActiveDistance), Avg_ModActive_Distance = mean(ModeratelyActiveDistance)
+             ,Avg_LightActive_Distance = mean(LightActiveDistance), Avg_VeryActive_Min = mean(VeryActiveMinutes), Avg_FairlyActive_Min = mean(FairlyActiveMinutes), Avg_LightActive_Min = mean(LightlyActiveMinutes),
+             Avg_Sedentary_Min = mean(SedentaryMinutes), Avg_Calories = mean(Calories)) %>% 
+  drop_na()
+ head(daily_activity_by_id)
+ 
+```
+From this data frame we now plot graphs showing relation between average distance and average calories burned and another plot showing relation between number of sedentary minutes and calories burned.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+ggplot(data = daily_activity_by_id)+ geom_point(mapping= aes(x=Avg_Distance, y= Avg_Calories, color = Avg_Distance))+
+  geom_smooth(mapping= aes(x=Avg_Distance, y= Avg_Calories),color="green")+ labs(title="Average Calories Burned vs Average Distance")
+ggplot(data = daily_activity_by_id)+ geom_smooth(mapping= aes(x=Avg_Sedentary_Min, y= Avg_Calories), color= "purple") + labs(title="Average Calories Burned vs Sedentary Minutes")
+```
+The plot confirms that as the distance covered increases more calories are burned and that longer sedentary periods lead to lesser calorie burn.
+
+### 4.b) Next I categorize users into 4 types based on their daily activity intensities.
+```{r, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+## New dataframe containing data by usertype, Id and Calories
+data_by_usertype <- daily_activity%>%
+  summarise(
+    user_type = factor(case_when(
+      SedentaryMinutes > mean(SedentaryMinutes) & LightlyActiveMinutes < mean(LightlyActiveMinutes) & FairlyActiveMinutes < mean(FairlyActiveMinutes) & VeryActiveMinutes < mean(VeryActiveMinutes) ~ "Sedentary",
+      SedentaryMinutes < mean(SedentaryMinutes) & LightlyActiveMinutes > mean(LightlyActiveMinutes) & FairlyActiveMinutes < mean(FairlyActiveMinutes) & VeryActiveMinutes < mean(VeryActiveMinutes) ~ "Lightly Active",
+      SedentaryMinutes < mean(SedentaryMinutes) & LightlyActiveMinutes < mean(LightlyActiveMinutes) & FairlyActiveMinutes > mean(FairlyActiveMinutes) & VeryActiveMinutes < mean(VeryActiveMinutes) ~ "Fairly Active",
+      SedentaryMinutes < mean(SedentaryMinutes) & LightlyActiveMinutes < mean(LightlyActiveMinutes) & FairlyActiveMinutes < mean(FairlyActiveMinutes) & VeryActiveMinutes > mean(VeryActiveMinutes) ~ "Very Active",
+    ),levels=c("Sedentary", "Lightly Active", "Fairly Active", "Very Active")), Calories,Id) %>%
+  drop_na()
+head (data_by_usertype)
+```
+
+Now I use bar graph to identify distribution of users. 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+ggplot(data = data_by_usertype) + geom_bar(mapping = aes(x= user_type, fill= user_type))+labs(title="Number of each user type")
+```
+
+
+The graph shows that maximum number of users are of sedentary type, followed by lightly active, very active and fairly active. It would be interesting to find relationship between user type and calories burned.
+```{r, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+ggplot(data = data_by_usertype) + geom_boxplot(mapping = aes(x= user_type, y= Calories, fill = user_type)) + facet_wrap(~user_type) + labs(title ="Calories Burned vs User Type")+ theme(axis.text.x = element_text(angle = 45))
+
+```
+As expected barring a few outliers the boxplot shows that maximum calories are burned by Very Active users and least by Sedentary users. 
+
+Now that I know that maximum users are sedentary type, it will be helpful if I can show some effective ways of burning calories. Thus, I create a new data frame based on distance type and show its relation to calories.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+## New dataframe containing distance type, Calories, Total Steps an Id
+cal_by_distance <- daily_activity%>%
+  summarise(
+    distance_type = factor(case_when(
+      LightActiveDistance > mean(LightActiveDistance) & ModeratelyActiveDistance < mean(ModeratelyActiveDistance) & VeryActiveDistance < mean(VeryActiveDistance) ~ "Lightly Active Distance",
+      LightActiveDistance < mean(LightActiveDistance) & ModeratelyActiveDistance > mean(ModeratelyActiveDistance) & VeryActiveDistance < mean(VeryActiveDistance) ~ "Moderately Active Distance",
+      LightActiveDistance < mean(LightActiveDistance) & ModeratelyActiveDistance < mean(ModeratelyActiveDistance) & VeryActiveDistance > mean(VeryActiveDistance) ~ "Very Active Distance",
+    ),levels=c("Lightly Active Distance", "Moderately Active Distance", "Very Active Distance")), Calories,TotalSteps,Id) %>%
+  drop_na()
+
+## Visualize relation between distance type and calories
+ggplot(data = cal_by_distance) + geom_point(mapping = aes(x= distance_type, y= Calories, color = TotalSteps))+
+  geom_boxplot(mapping = aes(x= distance_type, y= Calories))+ labs(title = "Calories vs Distance Type")
+
+```
+The box plot shows that maximum calories are burnt under very active distance which implies through activities like running, cycling etc. However, even the light activities like walking, jogging can burn equal amount of calories provided that the number of steps are more. 
+
+## Step 5 - SHARE
+
+In this step of the analysis the marketing analytics team shares the findings of the analysis and makes high level recommendations. 
+
+### Findings
+* There is a positive co-relation between physical activity and calories burned.
+* Maximum type of users in the sample were of sedentary type.
+* Most calories are burned by users that are very active,
+* Fast paced activities burn most calories however slower activities can do the same if done for longer.
+
+### Recommendations 
+* Fitness data like number of steps, distance covered, calories burned must be collected and should give a daily status to users. 
+* Apart from descriptive analysis predictive analysis must also be done especially beacause majority users are sedentary and aiming for improvement - for example, daily update could read -"Congratulations! Your daily activity status for today is Fairly Active. Spend x more active minutes tomorrow to upgrade to Very Active status.You can do it!"
+* Users should be able to set goals and based on goals and accordingly suggestions can be made for the type of activity they should perform.
